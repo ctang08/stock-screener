@@ -1,0 +1,18 @@
+"use client";
+import { useState } from "react";
+import type { StockData } from "@/lib/types";
+import { PriceChart } from "@/components/price-chart";
+export default function Home() {
+  const [query, setQuery] = useState("AAPL");
+  const [data, setData] = useState<StockData | null>(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  async function load(event: React.FormEvent) {
+    event.preventDefault(); setLoading(true); setError(""); setData(null);
+    try { const response = await fetch(`/api/stock/${encodeURIComponent(query.trim())}`); const result = await response.json(); if (!response.ok) throw new Error(result.error); setData(result); }
+    catch (e) { setError(e instanceof Error ? e.message : "Unable to load this symbol."); }
+    finally { setLoading(false); }
+  }
+  const value = (n: number | null, suffix = "") => n === null ? "Unavailable" : n.toLocaleString(undefined, { maximumFractionDigits: 2 }) + suffix;
+  return <main><header><span className="brand">CT / FINANCIAL COMPUTING</span><a href="https://github.com/ctang08/stock-screener">View source ↗</a></header><section className="intro"><p className="eyebrow">FOPL PROJECT · DATA & MODELING</p><h1>Stock Screener</h1><p>Explore a ticker, inspect its price history, and examine a simple forecasting experiment.</p></section><form onSubmit={load}><label htmlFor="ticker">Stock ticker</label><div className="search"><input id="ticker" value={query} onChange={e => setQuery(e.target.value)} placeholder="e.g. AAPL" maxLength={15} required autoComplete="off"/><button disabled={loading}>{loading ? "Loading…" : "Look up ticker →"}</button></div></form><p className="note">Runs with synthetic demonstration data by default. Live mode requires your own Finnhub configuration.</p><div aria-live="polite">{error && <p role="alert" className="error">{error}</p>}{data && <><section className="summary"><div><span className="badge">{data.source === "synthetic" ? "SYNTHETIC DEMO · NOT MARKET DATA" : "FINNHUB · PROVIDER DATA"}</span><h2>{data.ticker} <span>${data.quote.currentPrice.toFixed(2)}</span></h2><p>{data.quote.priceChangePercentage >= 0 ? "+" : ""}{data.quote.priceChangePercentage.toFixed(2)}% {data.source === "synthetic" ? "vs. previous synthetic sample" : "provider-reported change"}</p></div><div><span className="eyebrow">ONE-STEP EXPERIMENT</span><h3>{data.prediction === null ? "Unavailable" : "$" + data.prediction.toFixed(2)}</h3><p>Random forest · previous-close feature</p></div></section><section className="panel"><h2>Closing price history</h2><PriceChart points={data.historical} prediction={data.prediction}/>{data.historyNote && <p className="note">{data.historyNote}</p>}</section><section className="metrics">{[["Market cap (USD millions)", value(data.info.marketCap)], ["P/E (TTM)", value(data.info.pe)], ["EPS (TTM)", value(data.info.eps)], ["Dividend yield", value(data.info.dividendYield, "%")], ["10-day avg. volume (millions)", value(data.info.averageVolume)]].map(([label, val]) => <div key={label}><span>{label}</span><strong>{val}</strong></div>)}</section></>}</div><section className="method"><h2>What the model does</h2><p>A random forest learns pairs of consecutive closing prices, then uses the latest close to estimate the next observation. It has no time-based validation or demonstrated predictive advantage. This is an educational experiment, not an investment recommendation.</p><p>The project currently supports single-ticker lookup; multi-company filtering and ranking are not implemented.</p></section><footer>Christopher Tang · FOPL Sprint 2, portfolio edition</footer></main>;
+}
